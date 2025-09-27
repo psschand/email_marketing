@@ -1,0 +1,83 @@
+# =============================================================================
+# Docker Compose Production Template for Postal
+# =============================================================================
+# Copy this file to docker-compose.prod.yml and update the values
+#
+# IMPORTANT: Update all placeholder values marked with <CHANGE_THIS>
+# =============================================================================
+
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: postal-db-1
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: "<CHANGE_THIS_TO_SECURE_ROOT_PASSWORD>"
+      MYSQL_DATABASE: "postal"
+      MYSQL_USER: "postal"
+      MYSQL_PASSWORD: "<CHANGE_THIS_TO_SECURE_PASSWORD>"
+    volumes:
+      - postal_mysql_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - postal_default
+      - mailu_default
+
+  web: &postal_app
+    image: psschand16/postal-arm64:latest
+    container_name: postal-web-1
+    restart: unless-stopped
+    depends_on:
+      - db
+    ports:
+      - "127.0.0.1:5001:5000"
+    volumes:
+      - postal_data:/opt/postal/app
+      - ./postal.yml:/opt/postal/config/postal.yml:ro
+    environment:
+      - POSTAL_ALLOW_ANY_HOST=true
+      - POSTAL_EXTRA_HOSTS=postal.soham.top
+    networks:
+      - postal_default
+      - mailu_default
+
+  smtp:
+    <<: *postal_app
+    container_name: postal-smtp-1
+    command: ["postal", "smtp-server"]
+    ports:
+      - "127.0.0.1:2525:25"
+    environment:
+      - POSTAL_ALLOW_ANY_HOST=true
+
+  worker:
+    <<: *postal_app
+    container_name: postal-worker-1
+    command: ["postal", "worker"]
+    ports: []
+    environment:
+      - POSTAL_ALLOW_ANY_HOST=true
+
+volumes:
+  postal_mysql_data:
+    name: postal_mysql_data
+  postal_data:
+    name: postal_data
+
+networks:
+  postal_default:
+    name: postal_default
+  mailu_default:
+    external: true
+    name: mailu_default
+
+# =============================================================================
+# Security Notes:
+# =============================================================================
+# 1. Change all database passwords to secure values
+# 2. Ensure passwords match those in postal.yml
+# 3. Consider removing POSTAL_ALLOW_ANY_HOST in production if not needed
+# 4. Update POSTAL_EXTRA_HOSTS with your actual domain
+# =============================================================================

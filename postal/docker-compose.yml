@@ -1,0 +1,66 @@
+version: "3.9"
+
+services:
+  web:
+    image: postal:arm64
+    command: postal web-server
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - /opt/postal/config:/config
+    restart: always
+    environment:
+      BIND_ADDRESS: "0.0.0.0"
+      POSTAL_EXTRA_HOSTS: "127.0.0.1,localhost"
+      POSTAL_ALLOW_ANY_HOST: "true"
+    depends_on:
+      - db
+
+  smtp:
+    image: postal:arm64
+    command: ["postal", "smtp-server", "--bind", "0.0.0.0"]
+    cap_add:
+      - NET_BIND_SERVICE
+    environment:
+      BIND_ADDRESS: "0.0.0.0"
+      POSTAL_EXTRA_HOSTS: "127.0.0.1,localhost"
+    ports:
+      - "127.0.0.1:2525:25"
+    volumes:
+      - /opt/postal/config:/config
+    restart: always
+    depends_on:
+      - db
+
+  worker:
+    image: postal:arm64
+    command: postal worker
+    volumes:
+      - /opt/postal/config:/config
+    restart: always
+    depends_on:
+      - db
+
+  runner:
+    profiles: ["tools"]
+    image: postal:arm64
+    command: postal
+    volumes:
+      - /opt/postal/config:/config
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: "postal_root_password"
+      MYSQL_DATABASE: "postal"
+      MYSQL_USER: "postal"
+      MYSQL_PASSWORD: "postal_password"
+      MYSQL_ROOT_HOST: "%"
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - postal-db:/var/lib/mysql
+    restart: always
+
+volumes:
+  postal-db:
+    driver: local

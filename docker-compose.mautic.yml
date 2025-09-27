@@ -1,0 +1,167 @@
+version: '3.8'
+
+services:
+  mautic:
+    image: mautic/mautic:5-apache
+    container_name: mautic-web-1
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
+    volumes:
+      - mautic_data:/var/www/html
+      - ./mautic/config:/var/www/html/app/config:rw
+      - ./mautic/logs:/var/www/html/var/logs:rw
+      - ./mautic/media:/var/www/html/media:rw
+    environment:
+      # Database Configuration (Using shared MySQL container with dedicated mautic database and user)
+      MAUTIC_DB_HOST: postal-db-1
+      MAUTIC_DB_PORT: 3306
+      MAUTIC_DB_NAME: mautic
+      MAUTIC_DB_USER: mautic
+      MAUTIC_DB_PASSWORD: mautic_secure_password_123
+      
+      # Mautic Configuration
+      MAUTIC_TRUSTED_PROXIES: '["0.0.0.0/0"]'
+      MAUTIC_REQUEST_CONTEXT_HOST: mautic.soham.top
+      MAUTIC_REQUEST_CONTEXT_SCHEME: https
+      MAUTIC_REQUEST_CONTEXT_PORT: 443
+      
+      # Email Configuration (Integration with Postal SMTP)
+      MAUTIC_MAILER_DSN: smtp://postal-smtp-1:25
+      MAUTIC_MAILER_FROM_EMAIL: noreply@soham.top
+      MAUTIC_MAILER_FROM_NAME: "Mautic Automation"
+      
+      # Advanced Configuration
+      MAUTIC_SECRET_KEY: <CHANGE_THIS_TO_32_CHAR_RANDOM_STRING>
+      MAUTIC_CORS_VALID_HEADERS: x-requested-with,content-type,accept,origin,authorization,x-csrftoken,x-requested-by
+      
+      # Performance
+      PHP_INI_DATE_TIMEZONE: UTC
+      PHP_MEMORY_LIMIT: 512M
+      PHP_MAX_EXECUTION_TIME: 300
+      PHP_UPLOAD_MAX_FILESIZE: 100M
+      PHP_POST_MAX_SIZE: 100M
+      
+    networks:
+      - mautic_default
+      - postal_default  # Connect to postal for email sending
+      - mailu_default   # Connect to mailu for nginx proxy access
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # Mautic Cron Jobs Container
+  mautic_cron:
+    image: mautic/mautic:5-apache
+    container_name: mautic-cron-1
+    restart: unless-stopped
+    depends_on:
+      - mautic
+    volumes:
+      - mautic_data:/var/www/html
+      - ./mautic/config:/var/www/html/app/config:rw
+      - ./mautic/logs:/var/www/html/var/logs:rw
+    environment:
+      MAUTIC_DB_HOST: postal-db-1
+      MAUTIC_DB_PORT: 3306
+      MAUTIC_DB_NAME: mautic
+      MAUTIC_DB_USER: postal
+      MAUTIC_DB_PASSWORD: <CHANGE_THIS_TO_POSTAL_DB_PASSWORD>
+    command: >
+      bash -c "
+        while true; do
+          echo 'Running Mautic cron jobs...'
+          
+          # Segment updates
+          php /var/www/html/bin/console mautic:segments:update --env=prod --no-debug --quiet
+          
+          # Campaign triggers
+          php /var/www/html/bin/console mautic:campaigns:trigger --env=prod --no-debug --quiet
+          
+          # Campaign rebuilds
+          php /var/www/html/bin/console mautic:campaigns:rebuild --env=prod --no-debug --quiet
+          
+          # Email queue processing
+          php /var/www/html/bin/console mautic:emails:send --env=prod --no-debug --quiet
+          
+          # Broadcast emails
+          php /var/www/html/bin/console mautic:broadcasts:send --env=prod --no-debug --quiet
+          
+          # Import processing
+          php /var/www/html/bin/console mautic:import --env=prod --no-debug --quiet
+          
+          # Clean up old data
+          php /var/www/html/bin/console mautic:maintenance:cleanup --days-old=30 --dry-run=false --env=prod --no-debug --quiet
+          
+          echo 'Mautic cron jobs completed. Sleeping for 5 minutes...'
+          sleep 300
+        done
+      "
+    networks:
+      - mautic_default
+      - postal_default
+
+  # Redis for caching (optional but recommended for performance)
+  mautic_redis:
+    image: redis:7-alpine
+    container_name: mautic-redis-1
+    restart: unless-stopped
+    volumes:
+      - mautic_redis_data:/data
+    networks:
+      - mautic_default
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  mautic_data:
+    name: mautic_data
+  mautic_redis_data:
+    name: mautic_redis_data
+
+networks:
+  mautic_default:
+    name: mautic_default
+  postal_default:
+    external: true
+    name: postal_default
+  mailu_default:
+    external: true
+    name: mailu_default
+
+# =============================================================================
+# Mautic Marketing Automation Platform
+# =============================================================================
+# 
+# Services:
+# - mautic: Main web application (port 8080)
+# - mautic_db: MySQL database
+# - mautic_cron: Background job processing
+# - mautic_redis: Redis cache (optional)
+#
+# Features:
+# - Integrated with Postal mail server for email sending
+# - Automated cron jobs for campaigns and email processing
+# - Redis caching for improved performance
+# - Health checks for all services
+# - Persistent data storage
+#
+# Setup:
+# 1. Copy this file to docker-compose.mautic.yml
+# 2. Update all <CHANGE_THIS> placeholders
+# 3. Create required directories: mkdir -p mautic/{config,logs,media}
+# 4. Run: docker compose -f docker-compose.mautic.yml up -d
+# 5. Access: http://localhost:8080 (or setup nginx proxy)
+#
+# Integration with existing mail servers:
+# - Uses postal_default network to send emails via Postal
+# - Configure SMTP settings in Mautic admin panel
+# - Set up proper DNS records for email deliverability
+#
+# =============================================================================

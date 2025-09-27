@@ -1,0 +1,118 @@
+version: '3.8'
+      # Database Configuration (Using shared MySQL container with dedicated mautic database and user)
+      MAUTIC_DB_HOST: postal-db-1
+      MAUTIC_DB_PORT: 3306
+      MAUTIC_DB_NAME: mautic
+      MAUTIC_DB_USER: mautic
+      MAUTIC_DB_PASSWORD: <CHANGE_THIS_MAUTIC_DB_PASSWORD>ces:
+  mautic:
+    image: mautic/mautic:v5-apache
+    container_name: mautic-web-1
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
+    volumes:
+      - mautic_data:/var/www/html
+      - ./config:/var/www/html/app/config:rw
+      - ./logs:/var/www/html/var/logs:rw
+      - ./media:/var/www/html/media:rw
+    environment:
+      # Database Configuration (Using shared postal_db)
+      MAUTIC_DB_HOST: postal-db-1
+      MAUTIC_DB_PORT: 3306
+      MAUTIC_DB_NAME: mautic
+      MAUTIC_DB_USER: postal
+      MAUTIC_DB_PASSWORD: "<CHANGE_THIS_TO_POSTAL_DB_PASSWORD>"
+      
+      # Mautic Configuration
+      MAUTIC_TRUSTED_PROXIES: '["0.0.0.0/0"]'
+      MAUTIC_REQUEST_CONTEXT_HOST: mautic.soham.top
+      MAUTIC_REQUEST_CONTEXT_SCHEME: https
+      MAUTIC_REQUEST_CONTEXT_PORT: 443
+      
+      # Email Configuration (Integration with Postal)
+      MAUTIC_MAILER_DSN: smtp://postal-smtp-1:25
+      MAUTIC_MAILER_FROM_EMAIL: noreply@soham.top
+      MAUTIC_MAILER_FROM_NAME: "Mautic Automation"
+      
+      # Security
+      MAUTIC_SECRET_KEY: "<CHANGE_THIS_TO_32_CHAR_RANDOM_STRING>"
+      
+      # Performance
+      PHP_INI_DATE_TIMEZONE: UTC
+      PHP_MEMORY_LIMIT: 512M
+      PHP_MAX_EXECUTION_TIME: 300
+      PHP_UPLOAD_MAX_FILESIZE: 100M
+      PHP_POST_MAX_SIZE: 100M
+      
+    networks:
+      - mautic_default
+      - postal_default
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  mautic_cron:
+    image: mautic/mautic:v5-apache
+    container_name: mautic-cron-1
+    restart: unless-stopped
+    depends_on:
+      - mautic
+    volumes:
+      - mautic_data:/var/www/html
+      - ./config:/var/www/html/app/config:rw
+      - ./logs:/var/www/html/var/logs:rw
+    environment:
+      MAUTIC_DB_HOST: postal-db-1
+      MAUTIC_DB_PORT: 3306
+      MAUTIC_DB_NAME: mautic
+      MAUTIC_DB_USER: postal
+      MAUTIC_DB_PASSWORD: "<CHANGE_THIS_TO_POSTAL_DB_PASSWORD>"
+    command: >
+      bash -c "
+        while true; do
+          echo 'Running Mautic cron jobs...'
+          php /var/www/html/bin/console mautic:segments:update --env=prod --no-debug --quiet
+          php /var/www/html/bin/console mautic:campaigns:trigger --env=prod --no-debug --quiet
+          php /var/www/html/bin/console mautic:campaigns:rebuild --env=prod --no-debug --quiet
+          php /var/www/html/bin/console mautic:emails:send --env=prod --no-debug --quiet
+          php /var/www/html/bin/console mautic:broadcasts:send --env=prod --no-debug --quiet
+          php /var/www/html/bin/console mautic:import --env=prod --no-debug --quiet
+          php /var/www/html/bin/console mautic:maintenance:cleanup --days-old=30 --dry-run=false --env=prod --no-debug --quiet
+          echo 'Cron jobs completed. Sleeping for 5 minutes...'
+          sleep 300
+        done
+      "
+    networks:
+      - mautic_default
+      - postal_default
+
+  mautic_redis:
+    image: redis:7-alpine
+    container_name: mautic-redis-1
+    restart: unless-stopped
+    volumes:
+      - mautic_redis_data:/data
+    networks:
+      - mautic_default
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  mautic_data:
+    name: mautic_data
+  mautic_redis_data:
+    name: mautic_redis_data
+
+networks:
+  mautic_default:
+    name: mautic_default
+  postal_default:
+    external: true
+    name: postal_default

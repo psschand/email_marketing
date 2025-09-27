@@ -1,0 +1,132 @@
+# =============================================================================
+# Mail Server Integration Project - .gitignore
+# =============================================================================
+
+# Environment files with sensitive information
+*.env
+!*.env.template
+!*.env.example
+
+# Configuration files with credentials
+postal.yml
+docker-compose.prod.yml
+mailu.env
+mautic/docker-compose.yml
+
+# Keep template and example files
+!*.template
+!*.example
+
+# SSL Certificates and Keys
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+certs/
+ssl/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker volumes and data
+data/
+volumes/
+mysql_data/
+postal_data/
+postgresql_data/
+mautic_data/
+mautic_redis_data/
+
+# Mautic specific files
+mautic/config/
+mautic/logs/
+mautic/media/
+mautic/var/
+
+# Logs
+*.log
+logs/
+log/
+
+# Backup files
+*.backup
+*.bak
+*.old
+*~
+.#*
+#*#
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+tmp/
+temp/
+.tmp
+
+# Node modules (if any)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Personal notes and drafts
+notes.md
+draft.md
+TODO.md
+personal/
+
+# Runtime files
+*.pid
+.pid
+
+# =============================================================================
+# Project specific ignores
+# =============================================================================
+
+# Migration scripts may contain sensitive database info when run
+migration-*.log
+migration-backup-*/
+
+# Docker secrets
+secrets/
+docker_secrets/
