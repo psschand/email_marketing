@@ -1,0 +1,71 @@
+services:
+  web:
+    image: psschand16/postal-arm64:latest
+    command: postal web-server
+    ports:
+      - "127.0.0.1:5001:5000"
+    volumes:
+      - ./postal.yml:/config/postal.yml
+    restart: always
+    environment:
+      BIND_ADDRESS: "0.0.0.0"
+      POSTAL_EXTRA_HOSTS: "127.0.0.1,localhost,postal.soham.top"
+      POSTAL_ALLOW_ANY_HOST: "true"
+    networks:
+      - default
+      - mailu_default
+    depends_on:
+      - db
+
+  smtp:
+    image: psschand16/postal-arm64:latest
+    command: ["postal", "smtp-server", "--bind", "0.0.0.0"]
+    cap_add:
+      - NET_BIND_SERVICE
+    environment:
+      BIND_ADDRESS: "0.0.0.0"
+      POSTAL_EXTRA_HOSTS: "127.0.0.1,localhost,postal.soham.top"
+    ports:
+      - "127.0.0.1:2525:25"
+    volumes:
+      - ./postal.yml:/config/postal.yml
+    restart: always
+    depends_on:
+      - db
+
+  worker:
+    image: psschand16/postal-arm64:latest
+    command: postal worker
+    volumes:
+      - ./postal.yml:/config/postal.yml
+    restart: always
+    depends_on:
+      - db
+
+  runner:
+    profiles: ["tools"]
+    image: psschand16/postal-arm64:latest
+    command: postal
+    volumes:
+      - ./postal.yml:/config/postal.yml
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: "postal_root_password"
+      MYSQL_DATABASE: "postal"
+      MYSQL_USER: "postal"
+      MYSQL_PASSWORD: "postal_password"
+      MYSQL_ROOT_HOST: "%"
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - postal-db:/var/lib/mysql
+    restart: always
+
+volumes:
+  postal-db:
+    driver: local
+
+networks:
+  mailu_default:
+    external: true

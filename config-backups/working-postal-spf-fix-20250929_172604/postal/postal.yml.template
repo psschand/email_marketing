@@ -1,0 +1,67 @@
+# =============================================================================
+# Postal Configuration Template
+# =============================================================================
+# Copy this file to postal.yml and update the values for your deployment
+#
+# IMPORTANT: Update all placeholder values marked with <CHANGE_THIS>
+# =============================================================================
+
+web_server:
+  bind_address: "0.0.0.0"
+  port: 5000
+
+main_db:
+  host: postal-db-1
+  port: 3306
+  username: postal
+  password: <CHANGE_THIS_TO_SECURE_PASSWORD>
+  database: postal
+
+message_db:
+  host: postal-db-1
+  port: 3306  
+  username: postal
+  password: <CHANGE_THIS_TO_SECURE_PASSWORD>
+  prefix: postal-server
+
+general:
+  # Generate a random secret key:
+  # openssl rand -hex 32
+  secret_key: "<CHANGE_THIS_TO_64_CHAR_HEX_STRING>"
+
+  # Your postal installation URL
+  postal_url: "https://postal.soham.top"
+
+smtp_server:
+  port: 25
+  bind_address: "0.0.0.0"
+
+web_ui:
+  host: "0.0.0.0"
+  port: 5000
+
+# DNS Configuration
+dns:
+  mx_records:
+    - mx.soham.top
+  smtp_server_hostname: postal.soham.top
+  spf_include: postal.soham.top
+  return_path: postal.soham.top
+  route_domain: postal.soham.top
+  track_domain: postal.soham.top
+
+# SMTP Configuration
+smtp:
+  host: postal-smtp-1
+  port: 25
+  username: postal
+  password: <CHANGE_THIS_TO_SECURE_PASSWORD>
+
+# =============================================================================
+# Security Notes:
+# =============================================================================
+# 1. Change all default passwords
+# 2. Generate a secure secret_key: openssl rand -hex 32
+# 3. Ensure database passwords match those in docker-compose.prod.yml
+# 4. Update DNS records according to the dns section above
+# =============================================================================
