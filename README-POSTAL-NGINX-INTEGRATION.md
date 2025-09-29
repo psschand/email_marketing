@@ -92,7 +92,7 @@ networks:
 
 ### **Prerequisites**
 - ✅ Mailu mail server running with nginx front-end
-- ✅ Postal mail server running on port 5001
+- ✅ Postal mail server running on port 5000
 - ✅ Both services using Docker Compose
 - ✅ MySQL database shared between both services
 
@@ -116,7 +116,7 @@ server {
 
     # Main location - proxy to postal container
     location / {
-        proxy_pass http://postal-web-1:5001;
+        proxy_pass http://postal-web-1:5000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -154,7 +154,7 @@ server {
 
     # Main location - proxy to postal container
     location / {
-        proxy_pass http://postal-web-1:5001;
+        proxy_pass http://postal-web-1:5000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -400,10 +400,8 @@ docker exec mailu-front-1 nginx -s reload
 # View postal logs
 docker logs postal-web-1 --follow
 
-# Test direct postal access (bypass proxy)
-curl localhost:5001/login
-
-# Check database connectivity
+   # Test direct postal access (bypass proxy)
+   curl localhost:5000/login# Check database connectivity
 docker exec mailu-admin-1 ping -c 2 postal-db-1
 
 # Verify database configuration

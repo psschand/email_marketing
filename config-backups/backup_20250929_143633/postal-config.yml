@@ -1,0 +1,52 @@
+version: 2
+
+postal:
+  smtp_hostname: smtp
+  web_hostname: postal.soham.top
+  web_protocol: https
+
+main_db:
+  host: db
+  username: postal
+  password: postal_password
+  database: postal
+
+message_db:
+  host: db
+  username: postal
+  password: postal_password
+  prefix: postal
+
+logging:
+  rails_log_enabled: true
+  highlighting_enabled: true
+
+rails:
+  environment: production
+  secret_key: "61ff32313a4a9cd38fc0beb8edccd92a77b731065ffae30c4b310fd355d3f103"
+
+web:
+  bind_address: 0.0.0.0
+  host: postal.soham.top
+  protocol: https
+  port: 5000
+
+# Extra allowed hosts for reverse proxy
+extra_hosts:
+  - localhost
+  - 127.0.0.1
+  - postal.soham.top
+
+smtp_server:
+  bind_address: 0.0.0.0
+  port: 25
+
+dns:
+  mx_records:
+    - mx.postal.soham.top
+  smtp_server_hostname: postal.soham.top
+  spf_include: spf.postal.soham.top
+  return_path_domain: rp.postal.soham.top
+  custom_return_path_prefix: psrp
+  route_domain: routes.postal.soham.top
+  track_domain: track.postal.soham.top
